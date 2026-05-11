@@ -1,0 +1,349 @@
+# could not figure out how to commit from colab, need to copy and paste into new doc to edit and then copy and paste again here
+# Gianna Miller worked for 11 hours,
+#Bowie Krawczyk edited code for 2.5 hours
+#imported necessary packages after researching which ones were useful,
+#created pathway to ensure new user file for each user,
+#made the code pull up the old user information, created the login interface
+#and app interface, created drop down for selecting habits, created input
+#interface to put in habits for each habit, created the graphs for the tracked
+#habits, created the login interface to ensure user had an account and a unique
+#username and trialed the app
+# Bowie Krawczyk updated the app styling and overall user interface design: (2 hours)
+# BK added formatted HTML welcome and title sections to improve visual appearance: (1.5 hours)
+# BK improved graph formatting by adjusting graph size, labels, spacing, and readability: (2 hours)
+# BK reorganized button layout and overall app formatting to improve usability: (1.5 hours)
+# BK fixed signup output and graph indentation/debugging issues: (1.5 hours)
+# BK tested updated graph displays, login flow, and overall app functionality: (1.5 hours)
+
+
+
+# import necessary packages
+import pandas as pd
+from datetime import date
+import os
+import hashlib
+import matplotlib.pyplot as plt
+import ipywidgets as widgets
+from IPython.display import display, clear_output
+
+
+# create new file for each user
+user_file = "user.csv"
+data_folder = "user_data"
+os.makedirs(data_folder, exist_ok = True)
+
+
+# create habit data for first use or load data after first use
+if os.path.isfile(user_file):
+ users = pd.read_csv(user_file)
+else:
+ users = pd.DataFrame(columns = ["Username", "PasswordHash"])
+ users.to_csv(user_file, index = False)
+
+
+current_user = None
+
+
+# save password
+def hash_password(password):
+ return hashlib.sha256(password.encode()).hexdigest()
+
+
+# load user data
+def get_user_file(username):
+ return f"{data_folder}/{username}_habits.csv"
+def load_user_data(username):
+ user_file = get_user_file(username)
+ if os.path.exists(user_file):
+   return pd.read_csv(user_file)
+ else:
+   return pd.DataFrame(columns = ["Date", "Habit", "Value", "Unit", "Notes"])
+def save_user_data(username, data):
+ data.to_csv(get_user_file(username), index = False)
+
+
+# Login interface
+title = widgets.HTML("""
+<div style="
+ background-color:#E8DDF8;
+ padding:20px;
+ border-radius:18px;
+ text-align:center;
+ border:1px solid #D0B7F2;
+">
+ <h1 style="color:#4B2E83; margin-bottom:5px;">Habit Tracker App</h1>
+ <p style="font-size:16px; color:#444;">
+   Track your water, reading, productivity, and sleep habits in one place.
+ </p>
+</div>
+""")
+
+
+username_box = widgets.Text(description = "Username: ")
+password_box = widgets.Password(description = "Password: ")
+login_button = widgets.Button(description = "Login", button_style = "success")
+signup_button = widgets.Button(description = "Sign Up", button_style = "info")
+login_output = widgets.Output()
+
+
+# interface for right after logged in
+def show_app(username):
+ clear_output()
+ habits = load_user_data(username)
+
+
+ welcome = widgets.HTML(f"""
+<div style="
+ background-color:#F7F3FC;
+ padding:15px;
+ border-radius:12px;
+ margin-bottom:10px;
+">
+ <h2 style="color:#4B2E83;">Welcome, {username}!</h2>
+ <p style="color:#555;">Choose a habit and enter today's progress.</p>
+</div>
+""")
+
+
+ habit_dropdown = widgets.Dropdown(
+   options = ["Water Consumption", "Pages Read", "Productivity", "Sleep Consistency"],
+   description = "Habit:",
+   style = {"description_width": "initial"},
+   layout = widgets.Layout(width = "350px")
+ )
+
+
+ input_area = widgets.VBox()
+
+
+ save_button = widgets.Button(description = "Save Entry", button_style = "success")
+ view_button = widgets.Button(description = "View My Data", button_style = "info")
+ summary_button = widgets.Button(description = "Show Summary", button_style = "warning")
+ graph_button = widgets.Button(description = "Show Graphs", button_style = "primary")
+ logout_button = widgets.Button(description = "Logout", button_style = "danger")
+ output = widgets.Output()
+
+
+ def update_inputs(change):
+   selected = habit_dropdown.value
+
+
+   if selected == "Water Consumption":
+     ounces_box = widgets.FloatSlider(value = 8, min = 0, max = 30, step = 1, description = "Ounces:")
+     notes_box = widgets.Textarea(description = "Notes:", placeholder = "Optional notes")
+     input_area.children = [ounces_box, notes_box]
+
+
+   elif selected == "Pages Read":
+     pages_box = widgets.IntSlider(value = 30, min = 0, max = 300, step = 1, description = "Pages:")
+     book_box = widgets.Text(description = "Book:", placeholder = "Book title")
+     input_area.children = [pages_box, book_box]
+
+
+   elif selected == "Productivity":
+     hours_box = widgets.FloatSlider(value = 2, min = 0, max = 16, step = 0.5, description = "Hours:")
+     task_box = widgets.Textarea(description = "Tasks:", placeholder = "What did you work on?")
+     input_area.children = [hours_box, task_box]
+
+
+   elif selected == "Sleep Consistency":
+     sleep_box = widgets.FloatSlider(value = 8, min = 0, max = 14, step = 0.5, description = "Hours:")
+     bedtime_box = widgets.Text(description = "Bedtime:", placeholder = "Example: 10:00 PM")
+     wake_box = widgets.Text(description = "Wake Time:", placeholder = "Example: 7:00 AM")
+     input_area.children = [sleep_box, bedtime_box, wake_box]
+
+
+ def save_entry(button):
+   nonlocal habits
+   selected = habit_dropdown.value
+
+
+   if selected == "Water Consumption":
+     value = input_area.children[0].value
+     unit = "ounces"
+     notes = input_area.children[1].value
+
+
+   elif selected == "Pages Read":
+     value = input_area.children[0].value
+     unit = "pages"
+     notes = f"Book: {input_area.children[1].value}"
+
+
+   elif selected == "Productivity":
+     value = input_area.children[0].value
+     unit = "hours"
+     notes = input_area.children[1].value
+
+
+   elif selected == "Sleep Consistency":
+     value = input_area.children[0].value
+     unit = "hours"
+     notes = f"Bedtime: {input_area.children[1].value}, Wake Time: {input_area.children[2].value}"
+
+
+   new_entry = {
+     "Date": str(date.today()),
+     "Habit": selected,
+     "Value": value,
+     "Unit": unit,
+     "Notes": notes
+   }
+
+
+   habits = pd.concat([habits, pd.DataFrame([new_entry])], ignore_index = True)
+   save_user_data(username, habits)
+
+
+   with output:
+     clear_output()
+     print("Entry saved!")
+     display(habits.tail(1))
+
+
+ def view_data(button):
+   with output:
+     clear_output()
+     if len(habits) == 0:
+       print("No data yet.")
+     else:
+       display(habits)
+
+
+ def show_summary(button):
+   with output:
+     clear_output()
+     if len(habits) == 0:
+       print("No data yet.")
+     else:
+       summary = habits.groupby("Habit")["Value"].mean()
+       display(summary)
+
+
+ def show_graphs(button):
+   with output:
+     clear_output()
+
+
+     if len(habits) == 0:
+       print("No data yet.")
+       return
+
+
+     data = habits.copy()
+     data["Date"] = pd.to_datetime(data["Date"])
+
+
+     for habit in data["Habit"].unique():
+       habit_data = data[data["Habit"] == habit].sort_values("Date")
+
+
+       fig, ax = plt.subplots(figsize = (8, 4))
+
+
+       ax.plot(
+         habit_data["Date"],
+         habit_data["Value"],
+         marker = "o",
+         linewidth = 3,
+         markersize = 7
+       )
+
+
+       ax.set_title(f"{habit} Progress Over Time", fontsize = 16, fontweight = "bold")
+       ax.set_xlabel("Date", fontsize = 12)
+       ax.set_ylabel(habit_data["Unit"].iloc[0].capitalize(), fontsize = 12)
+       ax.grid(True, alpha = 0.3)
+
+
+       plt.xticks(rotation = 45)
+       plt.tight_layout()
+       plt.show()
+
+
+ def logout(button):
+   clear_output()
+   display_login()
+
+
+ habit_dropdown.observe(update_inputs, names = "value")
+ update_inputs(None)
+
+
+ save_button.on_click(save_entry)
+ view_button.on_click(view_data)
+ summary_button.on_click(show_summary)
+ graph_button.on_click(show_graphs)
+ logout_button.on_click(logout)
+
+
+ button_row = widgets.HBox(
+   [save_button, view_button, summary_button, graph_button, logout_button],
+   layout = widgets.Layout(
+     justify_content = "space-between",
+     width = "100%",
+     margin = "15px 0px 15px 0px"
+   )
+ )
+
+
+ app = widgets.VBox(
+   [welcome, habit_dropdown, input_area, button_row, output],
+   layout = widgets.Layout(
+     border = "1px solid #DDD",
+     padding = "20px",
+     width = "850px"
+   )
+ )
+
+
+ display(app)
+# have the login make sure user exists or signup and have unique usernames for every person
+def login(button):
+ global users
+ username = username_box.value.strip()
+ password = password_box.value
+ with login_output:
+   clear_output()
+   if username == "" or password == "":
+     print("Enter a username and password.")
+     return
+   password_hash = hash_password(password)
+   match = users[(users["Username"] == username) & (users["PasswordHash"] == password_hash)]
+
+
+   if len(match) == 1:
+     show_app(username)
+   else:
+     print("Incorrect username or password.")
+
+
+def signup(button):
+ global users
+ username = username_box.value.strip()
+ password = password_box.value
+ with login_output:
+   clear_output()
+   if username == "" or password == "":
+     print("Enter a username and password.")
+     return
+   if username in users["Username"].values:
+     print("Username already exists.")
+     return
+   new_user = {"Username": username, "PasswordHash": hash_password(password)}
+   users = pd.concat([users, pd.DataFrame([new_user])], ignore_index = True)
+   users.to_csv(user_file, index = False)
+   empty_data = pd.DataFrame(columns = ["Date", "Habit", "Value", "Unit", "Notes"])
+   save_user_data(username, empty_data)
+   print("Account created. You may now log in.")
+
+
+def display_login():
+ login_button.on_click(login)
+ signup_button.on_click(signup)
+ login_page = widgets.VBox([title, username_box, password_box, widgets.HBox([login_button, signup_button]), login_output])
+ display(login_page)
+
+
+display_login()
+
